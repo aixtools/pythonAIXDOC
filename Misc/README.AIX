@@ -1,0 +1,140 @@
+
+This documentation tries to help people who intend to use Python on
+AIX.
+
+There used to be many issues with Python on AIX, but the major ones
+have been corrected for version 3.8, so that Python should now work
+rather well on this platform.
+
+Note: the instructions for building should work for versions from 3.4
+and 2.7 but for versions 3.7 and earlier, not all fixes to Python tests
+were back-ported. More on tests later.
+
+======================================================================
+			   Compiling Python
+----------------------------------------------------------------------
+
+You can compile Python with gcc or the IBM (aka native) compilers.
+The key differences is the run-time environment libraries needed
+for Python and Python modules that include there own compiled code.
+The other key difference is that for most versions of the IBM (xl)C
+compiler the flag --without-computed-gotos is needed.
+
+(Need to test if this is still true with the latest (v16) of the compiler.
+
+Compiling with gcc:
+
+cd Python-3.X
+CC=gcc OPT="-O2" ./configure
+make
+
+There are various aliases for the native compiler.  The recommended
+alias for compiling Python is 'xlc_r', which provides a better level of
+compatibility and handles thread initialization properly.
+
+It is a good idea to add the '-qmaxmem=-1' option. This permits the
+compiler to allocate additional memory, as needed, to optimize code.
+With the default value the compiler will warn that more optimization
+could have been done.
+
+Compiling with xlc:
+
+cd Python-3.X
+CC=xlc_r OPT="-O2 -qmaxmem=-1" ./configure --without-computed-gotos
+make
+
+======================================================================
+			  Memory Limitations
+----------------------------------------------------------------------
+
+Note: this section may not apply when compiling Python as a 64 bit
+application.
+
+By default AIX builds 32-bit ABI. A 32-bit executable's address area is
+divided into 16 256MByte addressable segments.
+
+Segment 0 is the kernel, Segment 1 is the program binary code (aka .text)
+and Segment 2 is the classic user or program addressable memory (.data,
+.bss, .stack and the space (unallocated memory) between the end of .bss
+(that grows up) amd the bottom of .stack (that grows down) is the heap.
+Some additional segments are used by AIX for shared library code and data.
+
+Using defaults, a Python program that requires more than 256 MiB
+MiB will raise a MemoryError.  The standard Python test suite is one such
+and to prevent the MemoryError the tests verifies the MAXDATA setting.
+See Lib/test/test_shutil.py:def _maxdataOK():
+
+To allocate more segment registers to Python, you must use the linker
+option -bmaxdata or the ldedit tool to specify the number of bytes you
+need in the data segment or use the environment variable LDR_CNTRL.
+
+For example, if you want to allow 512 MiB of memory for Python (this is
+enough for the test suite to run without MemoryErrors), you should run
+the following command at the end of compilation:
+
+ldedit -b maxdata:0x20000000 ./python
+
+or
+
+export LDR_CNTRL="MAXDATA=0x20000000"
+
+You can allow up to 2 GiB of memory for Python by using the value
+0x80000000 for maxdata.
+
+Note: the environment variable overrides anything in the the executable header
+(that the options -bmaxdata=... or ldedit -b ... modify).
+
+To go beyond 2GiB consult the documentation re: AIX memory model and LDR_CNTRL is available at:
+https://www.ibm.com/support/knowledgecenter/en/ssw_aix_71/generalprogramming/lrg_prg_support.html
+
+http://publib.boulder.ibm.com/infocenter/aix/v6r1/index.jsp?topic=/com.ibm.aix.cmds/doc/aixcmds3/ldedit.htm
+
+
+======================================================================
+			     Known issues
+----------------------------------------------------------------------
+
+Those issues are currently affecting Python on AIX:
+
+* Python is not as fully tested on AIX when compiled as a 64 bit
+  application. Some Python tests may fail, but no real issues are known.
+
+* As of Python 3.8.1 all Python Lib/tests pass in AIX 32-bit mode.
+
+* When using the (default) IBM OpenSSL library tests will report failed
+  because the AIX OpenSSL is optimized in a way that not all error message
+  strings are returned. The Python tests report a failure because
+  assertEqual("Some hard coded string", result) fails - because AIX returns ""
+
+
+======================================================================
+		Implementation details for developers
+----------------------------------------------------------------------
+
+Python and python modules can now be built as shared libraries on AIX
+as usual.
+
+By default python modules are built as shared libraries and their file names
+end with .so. By default Python does not build a shared library object
+libpython3.X.so. Instead is builds libpython3.X.a and it contains
+static .o files.  To get the shared libpython3.X.so add the argument
+--enable-shared to ./configure
+
+AIX shared libraries require that an "export" and "import" file be
+provided at compile time to list all extern symbols which may be
+shared between modules.  The "export" file (named python.exp) for the
+modules and the libraries that belong to the Python core is created by
+the "makexp_aix" script before performing the link of the python
+binary. It lists all global symbols (exported during the link) of the
+modules and the libraries that make up the python executable.
+
+When shared library modules (.so files) are made, a second shell
+script is invoked.  This script is named "ld_so_aix" and is also
+provided with the distribution in the Modules subdirectory.  This
+script acts as an "ld" wrapper which hides the explicit management of
+"export" and "import" files; it adds the appropriate arguments (in the
+appropriate order) to the link command that creates the shared module.
+Among other things, it specifies that the "python.exp" file is an
+"import" file for the shared module.
+
+This mechanism should be transparent.
