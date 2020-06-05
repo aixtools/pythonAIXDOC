@@ -1,4 +1,3 @@
-
 This documentation tries to help people who intend to use Python on
 AIX.
 
@@ -7,7 +6,8 @@ have been corrected for version 3.8, so that Python should now work
 rather well on this platform.
 
 Note: the instructions for building should work for versions from 3.4
-and 2.7 but for versions 3.7 and earlier, not all fixes to Python tests
+and 2.7.
+Note: for versions 3.7 and earlier, not all Python test modifications
 were back-ported. More on tests later.
 
 ======================================================================
@@ -15,19 +15,39 @@ were back-ported. More on tests later.
 ----------------------------------------------------------------------
 
 You can compile Python with gcc or the IBM (aka native) compilers.
-The key differences is the run-time environment libraries needed
-for Python and Python modules that include there own compiled code.
-The other key difference is that for most versions of the IBM (xl)C
-compiler the flag --without-computed-gotos is needed.
 
-(Need to test if this is still true with the latest (v16) of the compiler.
+Each compiler needs it's own run-time-environment. IBM XLC
+run time environment is maintained, and provided as part of base AIX.
+
+GNU GCC has additional run-time requirements and these must be
+provided - and maintained - by you and/or or the GNU environment
+provider (e.g., AIX Toolbox, BULL Freeware, Perzl OSS4AIX).
+
+The other key difference is that the configure flag --without-computed-gotos
+is needed when using IBM xlc compiler (at least through v16)
+
+On AIX, the default build is a 32-bit application (and shared libraries).
+64-bit builds are possible with additional (environment) variables.
+The requirements for 64-bit builds will receive a seperate section.
+Until then, the instructions are only accurate for 32-bit builds.
+
+----------------------------------------------------------------------
 
 Compiling with gcc:
 
 cd Python-3.X
-CC=gcc OPT="-O2" ./configure
+CC=gcc OPT="-O3" ./configure
 make
 
+----------------------------------------------------------------------
+
+Compiling with xlc:
+
+cd Python-3.X
+CC=xlc_r OPT="-O2" ./configure --without-computed-gotos
+make
+
+Notes:
 There are various aliases for the native compiler.  The recommended
 alias for compiling Python is 'xlc_r', which provides a better level of
 compatibility and handles thread initialization properly.
@@ -37,12 +57,6 @@ compiler to allocate additional memory, as needed, to optimize code.
 With the default value the compiler will warn that more optimization
 could have been done.
 
-Compiling with xlc:
-
-cd Python-3.X
-CC=xlc_r OPT="-O2 -qmaxmem=-1" ./configure --without-computed-gotos
-make
-
 ======================================================================
 			  Memory Limitations
 ----------------------------------------------------------------------
@@ -51,13 +65,13 @@ Note: this section may not apply when compiling Python as a 64 bit
 application.
 
 By default AIX builds 32-bit ABI. A 32-bit executable's address area is
-divided into 16 256MByte addressable segments.
+divided into 16 (sixteen) 256MByte addressable segments. The first three
+segments compose the legacy UNIX seperate I&D spaces memory model.
 
 Segment 0 is the kernel, Segment 1 is the program binary code (aka .text)
-and Segment 2 is the classic user or program addressable memory (.data,
-.bss, .stack and the space (unallocated memory) between the end of .bss
-(that grows up) amd the bottom of .stack (that grows down) is the heap.
-Some additional segments are used by AIX for shared library code and data.
+and Segment 2 contains .data, .bss, .stack as well as the are known as
+the heap (unallocated memory) between the end of .bss and the bottom of
+.stack. Additional segments are used by AIX for shared library code and data.
 
 Using defaults, a Python program that requires more than 256 MiB
 MiB will raise a MemoryError.  The standard Python test suite is one such
@@ -106,21 +120,24 @@ Those issues are currently affecting Python on AIX:
   strings are returned. The Python tests report a failure because
   assertEqual("Some hard coded string", result) fails - because AIX returns ""
 
+** I will add a library to the Python AIXDOC github site that can be used
+for testing OpenSSL (as is used by the AIX bots).
+
 
 ======================================================================
 		Implementation details for developers
 ----------------------------------------------------------------------
 
-Python and python modules can now be built as shared libraries on AIX
-as usual.
-
-By default python modules are built as shared libraries and their file names
-end with .so. By default Python does not build a shared library object
-libpython3.X.so. Instead is builds libpython3.X.a and it contains
-static .o files.  To get the shared libpython3.X.so add the argument
+Python and python modules can now be built as shared libraries on AIX.
+as usual.  To get the shared libpython3.X.so add the argument
 --enable-shared to ./configure
 
-AIX shared libraries require that an "export" and "import" file be
+Python modules are built as shared libraries and their file names
+end with .so. By default, Python does not build a shared library object
+libpython3.X.so. Instead is builds libpython3.X.a filled with
+static .o files.
+
+AIX shared libraries require that "export" and "import" files be
 provided at compile time to list all extern symbols which may be
 shared between modules.  The "export" file (named python.exp) for the
 modules and the libraries that belong to the Python core is created by
@@ -138,3 +155,9 @@ Among other things, it specifies that the "python.exp" file is an
 "import" file for the shared module.
 
 This mechanism should be transparent.
+
+NOTE: The way some third-party OSS packages are built you may see the
+message: "ld: 0711-224 WARNING: Duplicate symbol: [someSymbolName]".
+This is a side-effect of the loader working with import files and the
+way some shared libraries also export symbols. Generally speaking,
+the messages may be ignored.
