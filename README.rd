@@ -1,7 +1,7 @@
 # Python-AIX
-Improve Documentation for Python - specific to AIX
+Documentation for Python - specific to AIX
 
-This repo will permit a faster process to improve documentation about using Python on AIX
+This repo permits a faster process to improve documentation about using Python on AIX
 
 ## Project Summary
 
@@ -32,14 +32,24 @@ Once README.AIX is sufficient for the basics, expand the project into other area
 
 ### Status
 
-* Just getting started - feedback (use Issues and/or PR) welcomed
+* Getting started - feedback (use Issues and/or PR) welcomed
 * Start with Python 3.9
 
 ## Contributing
 
-There are many ways to contribute to this project.  Aside from the main technical work in the CPython runtime,  just sharing issues you have had with CPython and AIX and/or modules will help focus and shape improved documentation.  Comments can also help developers better understand the needs of the AIX user platform.
+There are many ways to contribute to this project.
+* When you file a bug re: AIX on bugs.python.org - please open an issue here as well
+whenever anything related to Documentatio is (also) invloved.
 
-Keep in mind that this project/repo is actually just a tool to organize the effort.  Actual work is done on [bugs.python.org](https://bugs.python.org/), [github.com/python/cpython](https://github.com/python/cpython/), and the [Python-ideas](https://mail.python.org/archives/list/python-ideas@python.org/) mailing list.
+* Just sharing issues you have had with CPython and AIX and/or modules
+will help focus and shape improved documentation.
+
+* Jour comments can also help developers better understand the needs of the AIX user platform.
+
+* Jeep in mind that this project/repo is actually just a tool to organize the effort.
+Actual work is done on [bugs.python.org](https://bugs.python.org/),
+[github.com/python/cpython](https://github.com/python/cpython/),
+and the [Python-ideas](https://mail.python.org/archives/list/python-ideas@python.org/) mailing list.
 
 Also note that contacting [@aixtools](https://github.com/aixtools) directly is fine, but you might get a faster response through http://forums.rootvg.net/aixtools or through the issue tracker here. :)
 
